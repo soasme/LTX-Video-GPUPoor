@@ -270,9 +270,30 @@ def parse_args():
     return args
 
 if __name__ == "__main__":
+    import urllib.request
+    import tempfile
+
     args = parse_args()
     infer_args = vars(args)
     # Remove None values to avoid passing them as kwargs
     infer_args = {k: v for k, v in infer_args.items() if v is not None}
-    infer(**infer_args)
+
+    temp_files = []
+    for key in ["image_start", "image_end"]:
+        val = infer_args.get(key)
+        if val and isinstance(val, str) and val.startswith("https://"):
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(val)[-1] or ".png")
+            print(f"Downloading {key} from {val} to {tmp.name}")
+            urllib.request.urlretrieve(val, tmp.name)
+            infer_args[key] = tmp.name
+            temp_files.append(tmp.name)
+
+    try:
+        infer(**infer_args)
+    finally:
+        for f in temp_files:
+            try:
+                os.remove(f)
+            except Exception as e:
+                print(f"Warning: could not remove temp file {f}: {e}")
 
