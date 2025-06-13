@@ -232,6 +232,11 @@ def infer(**kwargs):
         clip.write_videofile(output_path, codec="libx264")
 
     print(f"Video saved to {output_path}")
+
+    offload.last_offload_obj.unload_all()
+    gc.collect()
+    torch.cuda.empty_cache()
+    
     return output_path
 
 import argparse
