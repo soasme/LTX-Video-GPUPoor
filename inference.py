@@ -155,8 +155,10 @@ def infer(**kwargs):
         process_files_def(**enhancer_model_def)
     process_files_def(**text_encoder_model_def)
 
+    model_filename = get_model_filename(kwargs.get("model_mode", "ltxv_13B"), kwargs.get("quantization", text_encoder_quantization), kwargs.get("transformer_dtype_policy", ""))
+    print(f"Using model file: {model_filename}")
     model, pipe = load_ltxv_model(
-        model_filename=get_model_filename(kwargs.get("model_mode", "ltxv_13B"), kwargs.get("quantization", text_encoder_quantization), kwargs.get("transformer_dtype_policy", "")),
+        model_filename=model_filename,
         base_model_type=kwargs.get("model_mode", "ltxv_13B"),
         quantizeTransformer=kwargs.get("quantize_transformer", False),
         dtype=get_transformer_dtype(kwargs.get("model_mode", "ltxv_13B"),
