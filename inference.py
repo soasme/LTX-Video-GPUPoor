@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import gc
 
+import numpy as np
 import torch
 from mmgp import offload, profile_type
 from huggingface_hub import hf_hub_download, snapshot_download
@@ -146,6 +147,12 @@ def load_ltxv_model(model_filename, base_model_type, quantizeTransformer = False
 
     return ltxv_model, pipe
 
+def save_video(final_frames, output_path, fps=24):
+    assert final_frames.ndim == 4 and final_frames.shape[3] == 3, f"invalid shape: {final_frames} (need t h w c)"
+    if final_frames.dtype != np.uint8:
+        final_frames = (final_frames * 255).astype(np.uint8)
+    ImageSequenceClip(list(final_frames), fps=fps).write_videofile(output_path, verbose= False)
+
 
 ####
 
@@ -160,8 +167,8 @@ def infer(
     input_media_path=None,
     strength: float = 1.0,
     seed: int = 42,
-    height: int = 704,
-    width: int = 1216,
+    height: int = 480,
+    width: int = 832,
     video_length: int = 81,
     frame_rate: int = 30,
     fit_into_canvas: bool = True,
@@ -263,7 +270,15 @@ def infer(
         5: profile_type.VerylowRAM_LowVRAM,
     }
     chosen_profile = profile_type_map.get(profile_type_id, profile_type.HighRAM_LowVRAM)
-    offload.profile(pipe, chosen_profile)
+    profile_kwargs = { "extraModelsToQuantize": None }    
+    preload = 0
+    compile="transformer"
+    quantizeTransformer = True
+    if profile_type_id in (2, 4, 5):
+        profile_kwargs["budgets"] = { "transformer" : 100 if preload  == 0 else preload, "text_encoder" : 100 if preload  == 0 else preload, "*" : max(1000 if profile_type_id==5 else 3000 , preload) }
+    elif profile_type_id == 3:
+        profile_kwargs["budgets"] = { "*" : "70%" }
+    offload.profile(pipe, chosen_profile, compile=compile, quantizeTransformer=quantizeTransformer, **profile_kwargs)
     transformer = pipe["transformer"]
     print(f"Model loaded successfully. Using profile_type {profile_type_id}.")
 
@@ -323,8 +338,7 @@ def infer(
         output_path = output
     else:
         # If output is a numpy array or similar, use moviepy to save
-        clip = ImageSequenceClip(list(output), fps=frame_rate)
-        clip.write_videofile(output_path, codec="libx264")
+        save_video(output, output_path, fps=frame_rate)
 
     print(f"Video saved to {output_path}")
 
@@ -349,8 +363,8 @@ def parse_args():
     parser.add_argument('--input-media-path', type=str, default=None, help='Input media path')
     parser.add_argument('--strength', type=float, default=1.0, help='Strength')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
-    parser.add_argument('--height', type=int, default=704, help='Video height')
-    parser.add_argument('--width', type=int, default=1216, help='Video width')
+    parser.add_argument('--height', type=int, default=480, help='Video height')
+    parser.add_argument('--width', type=int, default=832, help='Video width')
     parser.add_argument('--video-length', type=int, default=81, help='Number of frames')
     parser.add_argument('--frame-rate', type=int, default=30, help='Frame rate')
     parser.add_argument('--fit-into-canvas', action='store_true', help='Fit into canvas')
