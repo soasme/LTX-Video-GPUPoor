@@ -115,7 +115,7 @@ def get_model_filename(model_type, quantization ="int8", dtype_policy = ""):
         if len(sub_choices) > 0:
             dtype_str = "fp16" if dtype == torch.float16 else "bf16"
             new_sub_choices = [ name for name in sub_choices if dtype_str in name]
-            sub_choices = new_sub_choices if len(new_sub_choices) > 0 : sub_choices
+            sub_choices = new_sub_choices if len(new_sub_choices) > 0 else sub_choices
             raw_filename = sub_choices[0]
         else:
             raw_filename = choices[0]
