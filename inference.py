@@ -1,12 +1,18 @@
 import os
-import torch
+
 from pathlib import Path
 import gc
-from huggingface_hub import hf_hub_download, snapshot_download
-from ltx_video.ltxv import LTXV
 
+import torch
+from mmgp import offload, profile_type
+from huggingface_hub import hf_hub_download, snapshot_download
+from moviepy import ImageSequenceClip
+from ltx_video.ltxv import LTXV
+from utils.attention import get_attention_modes, get_supported_attention_modes
+
+attention_modes_installed = get_attention_modes()
+attention_modes_supported = get_supported_attention_modes()
 text_encoder_quantization = "int8"  # Default quantization type, can be changed to "bf16" or "int8"
-model_filename = "ckpts/ltxv_0.9.7_13B_distilled_lora128_bf16.safetensors"
 enhancer_enabled = True
 save_path = "outputs/"
 
@@ -47,9 +53,7 @@ def process_files_def(repoId, sourceFolderList, fileList):
                         hf_hub_download(repo_id=repoId,  filename=onefile, local_dir = targetRoot)
 
 
-from wan.modules.attention import get_attention_modes, get_supported_attention_modes
-attention_modes_installed = get_attention_modes()
-attention_modes_supported = get_supported_attention_modes()
+
 def get_auto_attention():
     for attn in ["sage2","sage","sdpa"]:
         if attn in attention_modes_supported:
@@ -145,14 +149,71 @@ def load_ltxv_model(model_filename, base_model_type, quantizeTransformer = False
 
 ####
 
-def infer(**kwargs):
-    # Download the model files if they are not present
+def infer(
+    prompt: str,
+    negative_prompt: str = '',
+    image_start=None,
+    image_end=None,
+    video_source=None,
+    num_inference_steps: int = 50,
+    image_cond_noise_scale: float = 0.15,
+    input_media_path=None,
+    strength: float = 1.0,
+    seed: int = 42,
+    height: int = 704,
+    width: int = 1216,
+    video_length: int = 81,
+    frame_rate: int = 30,
+    fit_into_canvas: bool = True,
+    device=None,
+    VAE_tile_size=None,
+    model_mode: str = 'ltxv_13B',
+    quantization: str = 'int8',
+    transformer_dtype_policy: str = '',
+    quantize_transformer: bool = False,
+    mixed_precision_transformer: bool = False,
+    save_quantized: bool = False,
+    output_path: str = None
+):
+    """
+    Generate a video using the LTXV model.
+
+    Args:
+        prompt (str): Input prompt for video generation.
+        negative_prompt (str): Negative prompt.
+        image_start: PIL.Image or list of PIL.Image, or None. Start image.
+        image_end: PIL.Image or list of PIL.Image, or None. End image.
+        video_source: Path to input video, or None.
+        num_inference_steps (int): Sampling steps.
+        image_cond_noise_scale (float): Image condition noise scale.
+        input_media_path: Input media path, or None.
+        strength (float): Strength.
+        seed (int): Random seed.
+        height (int): Video height.
+        width (int): Video width.
+        video_length (int): Number of frames.
+        frame_rate (int): Frame rate.
+        fit_into_canvas (bool): Fit into canvas.
+        device: Device to use, or None.
+        VAE_tile_size: VAE tile size, or None.
+        model_mode (str): Model mode.
+        quantization (str): Quantization type.
+        transformer_dtype_policy (str): Transformer dtype policy.
+        quantize_transformer (bool): Quantize transformer.
+        mixed_precision_transformer (bool): Mixed precision transformer.
+        save_quantized (bool): Save quantized model.
+    Returns:
+        str: Path to the generated video file.
+    """
+    # 1. Select the model filename and text encoder filename based on arguments
     model_filename = get_model_filename(
-        kwargs.get("model_mode", "ltxv_13B"),
-        kwargs.get("quantization", text_encoder_quantization),
-        kwargs.get("transformer_dtype_policy", "")
+        model_mode,
+        quantization,
+        transformer_dtype_policy
     )
     text_encoder_filename = get_ltxv_text_encoder_filename(text_encoder_quantization)
+
+    # 2. Prepare model download definitions for text encoder and enhancer
     text_encoder_model_def = {
         "repoId" : "DeepBeepMeep/LTX_Video", 
         "sourceFolderList" :  ["T5_xxl_1.1",  ""  ],
@@ -173,59 +234,41 @@ def infer(**kwargs):
         "fileList" : [ ["config.json", "configuration_florence2.py", "model.safetensors", "modeling_florence2.py", "preprocessor_config.json", "processing_florence2.py", "tokenizer.json", "tokenizer_config.json"],["config.json", "generation_config.json", "Llama3_2_quanto_bf16_int8.safetensors", "special_tokens_map.json", "tokenizer.json", "tokenizer_config.json"]  ]
     }
 
+    # 3. Download model files if not present
     if enhancer_enabled:
         process_files_def(**enhancer_model_def)
     process_files_def(**text_encoder_model_def)
 
     print(f"Using model file: {model_filename}")
+    # 4. Load the model and pipeline
     model, pipe = load_ltxv_model(
         model_filename=[model_filename],
-        base_model_type=kwargs.get("model_mode", "ltxv_13B_distilled"),
-        quantizeTransformer=kwargs.get("quantize_transformer", False),
-        dtype=get_transformer_dtype(kwargs.get("model_mode", "ltxv_13B"),
-                                    kwargs.get("transformer_dtype_policy", "")),
+        base_model_type=model_mode,
+        quantizeTransformer=quantize_transformer,
+        dtype=get_transformer_dtype(model_mode, transformer_dtype_policy),
         VAE_dtype=torch.float32,
-        mixed_precision_transformer=kwargs.get("mixed_precision_transformer", False),
-        save_quantized=kwargs.get("save_quantized", False)
+        mixed_precision_transformer=mixed_precision_transformer,
+        save_quantized=save_quantized
     )
 
-    from mmgp import offload, profile_type
+    # 5. Set up memory management and offloading
     offload.profile(pipe, profile_type.HighRAM_LowVRAM)
-
     transformer = pipe["transformer"]
     print("Model loaded successfully.")
 
+    # 6. Prepare for inference: disable gradients, clear memory, create output dir
     torch.set_grad_enabled(False) 
     os.makedirs(save_path, exist_ok=True)
     gc.collect()
     torch.cuda.empty_cache()
 
-    # Now let's genrate the video
-    # Prepare arguments for the generate method
-    input_prompt = kwargs.get("prompt", "")
-    n_prompt = kwargs.get("negative_prompt", "")
-    image_start = kwargs.get("image_start", None)
-    image_end = kwargs.get("image_end", None)
-    input_video = kwargs.get("video_source", None)
-    sampling_steps = kwargs.get("num_inference_steps", 50)
-    image_cond_noise_scale = kwargs.get("image_cond_noise_scale", 0.15)
-    input_media_path = kwargs.get("input_media_path", None)
-    strength = kwargs.get("strength", 1.0)
-    seed = kwargs.get("seed", 42)
-    height = kwargs.get("height", 704)
-    width = kwargs.get("width", 1216)
-    frame_num = kwargs.get("video_length", 81)
-    frame_rate = kwargs.get("frame_rate", 30)
-    fit_into_canvas = kwargs.get("fit_into_canvas", True)
-    device = kwargs.get("device", None)
-    VAE_tile_size = kwargs.get("VAE_tile_size", None)
+    # 7. Prepare arguments for the generate method
+    # (already unpacked from function signature)
 
-    # set VAE tile size if not provided
+    # 8. Set VAE tile size if not provided (auto-detect based on VRAM)
     if not VAE_tile_size:
         vae_config = 0 # Auto
         device_mem_capacity = torch.cuda.get_device_properties(0).total_memory / 1048576
-        #("16 bits, requires less VRAM and faster", "16"),
-        #("32 bits, requires twice more VRAM and slower but recommended with Window Sliding", "32"),
         vae_precision = "16"
         VAE_tile_size = model.vae.get_VAE_tile_size(
             vae_config,
@@ -233,36 +276,35 @@ def infer(**kwargs):
             vae_precision == "32",
         )
 
-    # set interrupt (?)
+    # 9. Set interrupt flag and attention mode
     model._interrupt = False
-
-    # set attention
     attn = get_auto_attention()
     offload.shared_state["_attention"] =  attn
 
-    # Call the generate method of the model
+    # 10. Call the generate method of the model to generate the video
     output = model.generate(
-        input_prompt=input_prompt,
-        n_prompt=n_prompt,
+        input_prompt=prompt,
+        n_prompt=negative_prompt,
         image_start=image_start,
         image_end=image_end,
-        input_video=input_video,
-        sampling_steps=sampling_steps,
+        input_video=video_source,
+        sampling_steps=num_inference_steps,
         image_cond_noise_scale=image_cond_noise_scale,
         input_media_path=input_media_path,
         strength=strength,
         seed=seed,
         height=height,
         width=width,
-        frame_num=frame_num,
+        frame_num=video_length,
         frame_rate=frame_rate,
         fit_into_canvas=fit_into_canvas,
         device=device,
         VAE_tile_size=VAE_tile_size,
     )
 
-    # Save the output video
-    output_path = os.path.join(save_path, f"generated_{seed}.mp4")
+    # 11. Save the output video to disk
+    if output_path is None:
+        output_path = os.path.join(save_path, f"generated_{seed}.mp4")
     if hasattr(output, 'save'):
         output.save(output_path)
     elif isinstance(output, str):
@@ -270,12 +312,12 @@ def infer(**kwargs):
         output_path = output
     else:
         # If output is a numpy array or similar, use moviepy to save
-        from moviepy import ImageSequenceClip
         clip = ImageSequenceClip(list(output), fps=frame_rate)
         clip.write_videofile(output_path, codec="libx264")
 
     print(f"Video saved to {output_path}")
 
+    # 12. Unload model and free memory
     offload.last_offload_obj.unload_all()
     gc.collect()
     torch.cuda.empty_cache()
@@ -309,6 +351,7 @@ def parse_args():
     parser.add_argument('--quantize-transformer', action='store_true', help='Quantize transformer')
     parser.add_argument('--mixed-precision-transformer', action='store_true', help='Mixed precision transformer')
     parser.add_argument('--save-quantized', action='store_true', help='Save quantized model')
+    parser.add_argument('--output-path', type=str, default=None, help='Path to save the generated video')
     args = parser.parse_args()
     return args
 
