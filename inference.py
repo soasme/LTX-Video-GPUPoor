@@ -115,7 +115,7 @@ def get_model_filename(model_type, quantization ="int8", dtype_policy = ""):
         if len(sub_choices) > 0:
             dtype_str = "fp16" if dtype == torch.float16 else "bf16"
             new_sub_choices = [ name for name in sub_choices if dtype_str in name]
-            sub_choices = new_sub_choices if len(new_sub_choices) > 0 else sub_choices
+            sub_choices = new_sub_choices if len(new_sub_choices) > 0 : sub_choices
             raw_filename = sub_choices[0]
         else:
             raw_filename = choices[0]
@@ -173,7 +173,8 @@ def infer(
     quantize_transformer: bool = False,
     mixed_precision_transformer: bool = False,
     save_quantized: bool = False,
-    output_path: str = None
+    output_path: str = None,
+    profile_type_id: int = 2
 ):
     """
     Generate a video using the LTXV model.
@@ -202,6 +203,8 @@ def infer(
         quantize_transformer (bool): Quantize transformer.
         mixed_precision_transformer (bool): Mixed precision transformer.
         save_quantized (bool): Save quantized model.
+        output_path (str): Path to save the generated video.
+        profile_type_id (int): Profile type (1-5) for offload.profile. Defaults to 2.
     Returns:
         str: Path to the generated video file.
     """
@@ -252,9 +255,17 @@ def infer(
     )
 
     # 5. Set up memory management and offloading
-    offload.profile(pipe, profile_type.HighRAM_LowVRAM)
+    profile_type_map = {
+        1: profile_type.LowRAM_HighVRAM,
+        2: profile_type.HighRAM_LowVRAM,
+        3: profile_type.LowRAM_HighVRAM,
+        4: profile_type.LowRAM_LowVRAM,
+        5: profile_type.VerylowRAM_LowVRAM,
+    }
+    chosen_profile = profile_type_map.get(profile_type_id, profile_type.HighRAM_LowVRAM)
+    offload.profile(pipe, chosen_profile)
     transformer = pipe["transformer"]
-    print("Model loaded successfully.")
+    print(f"Model loaded successfully. Using profile_type {profile_type_id}.")
 
     # 6. Prepare for inference: disable gradients, clear memory, create output dir
     torch.set_grad_enabled(False) 
@@ -352,6 +363,7 @@ def parse_args():
     parser.add_argument('--mixed-precision-transformer', action='store_true', help='Mixed precision transformer')
     parser.add_argument('--save-quantized', action='store_true', help='Save quantized model')
     parser.add_argument('--output-path', type=str, default=None, help='Path to save the generated video')
+    parser.add_argument('--profile-type', type=int, default=2, choices=[1,2,3,4,5], help='Profile type for offload.profile (1: LowRAM_HighVRAM, 2: HighRAM_LowVRAM, 3: Balanced, 4: MaxPerformance, 5: MinMemory). Default: 2')
     args = parser.parse_args()
     return args
 
