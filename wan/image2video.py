@@ -48,11 +48,13 @@ class WanI2V:
         self,
         config,
         checkpoint_dir,
-        model_filename ="",
-        text_encoder_filename="",
+        model_filename = None,
+        base_model_type= None,
+        text_encoder_filename= None,
         quantizeTransformer = False,
         dtype = torch.bfloat16,
         VAE_dtype = torch.float32,
+        save_quantized = False,
         mixed_precision_transformer = False
     ):
         self.device = torch.device(f"cuda")
@@ -101,7 +103,9 @@ class WanI2V:
         # model_filename = [model_filename, "audio_processor_bf16.safetensors"] 
         # model_filename = "c:/temp/i2v480p/diffusion_pytorch_model-00001-of-00007.safetensors"
         # dtype = torch.float16
-        self.model = offload.fast_load_transformers_model(model_filename, modelClass=WanModel,do_quantize= quantizeTransformer, writable_tensors= False) #, forcedConfigPath= "c:/temp/i2v720p/config.json")
+        base_config_file = f"configs/{base_model_type}.json"
+        forcedConfigPath = base_config_file if len(model_filename) > 1 else None
+        self.model = offload.fast_load_transformers_model(model_filename, modelClass=WanModel,do_quantize= quantizeTransformer and not save_quantized, writable_tensors= False, defaultConfigPath= base_config_file, forcedConfigPath= forcedConfigPath)
         self.model.lock_layers_dtypes(torch.float32 if mixed_precision_transformer else dtype)
         offload.change_dtype(self.model, dtype, True)
         # offload.save_model(self.model, "wan2.1_image2video_720p_14B_mbf16.safetensors", config_file_path="c:/temp/i2v720p/config.json")
@@ -110,6 +114,9 @@ class WanI2V:
 
         # offload.save_model(self.model, "wan2.1_Fun_InP_1.3B_bf16_bis.safetensors")
         self.model.eval().requires_grad_(False)
+        if save_quantized:            
+            from wan.utils.utils import save_quantized_model
+            save_quantized_model(self.model, model_filename[-1], dtype, base_config_file)
 
 
         self.sample_neg_prompt = config.sample_neg_prompt

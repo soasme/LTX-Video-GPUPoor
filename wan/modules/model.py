@@ -589,7 +589,7 @@ class MLPProj(torch.nn.Module):
 
 
 class WanModel(ModelMixin, ConfigMixin):
-    def preprocess_loras(self, model_filename, sd):
+    def preprocess_loras(self, model_type, sd):
 
         first = next(iter(sd), None)
         if first == None:
@@ -634,7 +634,7 @@ class WanModel(ModelMixin, ConfigMixin):
             new_sd.update(new_alphas)
             sd = new_sd
         from wgp import test_class_i2v 
-        if not test_class_i2v(model_filename):
+        if not test_class_i2v(model_type):
             new_sd = {}
             # convert loras for i2v to t2v
             for k,v in sd.items():
