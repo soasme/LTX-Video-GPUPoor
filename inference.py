@@ -41,7 +41,7 @@ def process_files_def(repoId, sourceFolderList, fileList):
 
 
 
-text_encoder_filename = get_ltxv_text_encoder_filename(text_encoder_quantization)
+
 
 transformer_choices = [
     "ckpts/ltxv_0.9.7_13B_dev_bf16.safetensors",
@@ -49,25 +49,6 @@ transformer_choices = [
     "ckpts/ltxv_0.9.7_13B_distilled_lora128_bf16.safetensors",
 ]
 
-text_encoder_model_def = {
-    "repoId" : "DeepBeepMeep/LTX_Video", 
-    "sourceFolderList" :  ["T5_xxl_1.1",  ""  ],
-    "fileList" : [
-        ["added_tokens.json",
-         "special_tokens_map.json",
-         "spiece.model",
-         "tokenizer_config.json"
-         ] + computeList(text_encoder_filename),
-        ["ltxv_0.9.7_VAE.safetensors",
-         "ltxv_0.9.7_spatial_upscaler.safetensors",
-         "ltxv_scheduler.json"
-         ] + computeList(model_filename) ]   
-}
-enhancer_model_def = {
-    "repoId" : "DeepBeepMeep/LTX_Video",
-    "sourceFolderList" : [ "Florence2", "Llama3_2"  ],
-    "fileList" : [ ["config.json", "configuration_florence2.py", "model.safetensors", "modeling_florence2.py", "preprocessor_config.json", "processing_florence2.py", "tokenizer.json", "tokenizer_config.json"],["config.json", "generation_config.json", "Llama3_2_quanto_bf16_int8.safetensors", "special_tokens_map.json", "tokenizer.json", "tokenizer_config.json"]  ]
-}
 
 model_signatures = {"ltxv_13B" : "ltxv_0.9.7_13B_dev",
                     "ltxv_13B_distilled" : "ltxv_0.9.7_13B_distilled",
@@ -151,6 +132,32 @@ def load_ltxv_model(model_filename, base_model_type, quantizeTransformer = False
 
 def infer(**kwargs):
     # Download the model files if they are not present
+    model_filename = get_model_filename(
+        kwargs.get("model_mode", "ltxv_13B"),
+        kwargs.get("quantization", text_encoder_quantization),
+        kwargs.get("transformer_dtype_policy", "")
+    )
+    text_encoder_filename = get_ltxv_text_encoder_filename(text_encoder_quantization)
+    text_encoder_model_def = {
+        "repoId" : "DeepBeepMeep/LTX_Video", 
+        "sourceFolderList" :  ["T5_xxl_1.1",  ""  ],
+        "fileList" : [
+            ["added_tokens.json",
+            "special_tokens_map.json",
+            "spiece.model",
+            "tokenizer_config.json"
+            ] + computeList(text_encoder_filename),
+            ["ltxv_0.9.7_VAE.safetensors",
+            "ltxv_0.9.7_spatial_upscaler.safetensors",
+            "ltxv_scheduler.json"
+            ] + computeList(model_filename) ]   
+    }
+    enhancer_model_def = {
+        "repoId" : "DeepBeepMeep/LTX_Video",
+        "sourceFolderList" : [ "Florence2", "Llama3_2"  ],
+        "fileList" : [ ["config.json", "configuration_florence2.py", "model.safetensors", "modeling_florence2.py", "preprocessor_config.json", "processing_florence2.py", "tokenizer.json", "tokenizer_config.json"],["config.json", "generation_config.json", "Llama3_2_quanto_bf16_int8.safetensors", "special_tokens_map.json", "tokenizer.json", "tokenizer_config.json"]  ]
+    }
+
     if enhancer_enabled:
         process_files_def(**enhancer_model_def)
     process_files_def(**text_encoder_model_def)
@@ -158,7 +165,7 @@ def infer(**kwargs):
     print(f"Using model file: {model_filename}")
     model, pipe = load_ltxv_model(
         model_filename=[model_filename],
-        base_model_type=kwargs.get("model_mode", "ltxv_13B"),
+        base_model_type=kwargs.get("model_mode", "ltxv_13B_distilled"),
         quantizeTransformer=kwargs.get("quantize_transformer", False),
         dtype=get_transformer_dtype(kwargs.get("model_mode", "ltxv_13B"),
                                     kwargs.get("transformer_dtype_policy", "")),
