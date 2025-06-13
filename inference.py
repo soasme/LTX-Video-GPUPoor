@@ -336,7 +336,9 @@ def infer(
         output_path = output
     else:
         # If output is a numpy array or similar, use moviepy to save
-        save_video(output, output_path, fps=frame_rate)
+        output = output.to("cpu")
+        output = output.cpu()
+        save_video(output[None], output_path, fps=frame_rate)
 
     print(f"Video saved to {output_path}")
 
