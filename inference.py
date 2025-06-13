@@ -157,7 +157,7 @@ def infer(**kwargs):
 
     print(f"Using model file: {model_filename}")
     model, pipe = load_ltxv_model(
-        model_filename=model_filename,
+        model_filename=[model_filename],
         base_model_type=kwargs.get("model_mode", "ltxv_13B"),
         quantizeTransformer=kwargs.get("quantize_transformer", False),
         dtype=get_transformer_dtype(kwargs.get("model_mode", "ltxv_13B"),
