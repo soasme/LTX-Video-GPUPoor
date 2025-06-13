@@ -225,6 +225,8 @@ def infer(**kwargs):
             vae_precision == "32",
         )
 
+    # set interrupt (?)
+    model._interrupt = False
 
     # Call the generate method of the model
     output = model.generate(
