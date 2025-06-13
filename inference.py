@@ -174,7 +174,7 @@ def infer(
     mixed_precision_transformer: bool = False,
     save_quantized: bool = False,
     output_path: str = None,
-    profile_type: int = 2
+    profile_type_id: int = 2
 ):
     """
     Generate a video using the LTXV model.
@@ -204,7 +204,7 @@ def infer(
         mixed_precision_transformer (bool): Mixed precision transformer.
         save_quantized (bool): Save quantized model.
         output_path (str): Path to save the generated video.
-        profile_type (int): Profile type (1-5) for offload.profile. Defaults to 2.
+        profile_type_id (int): Profile type (1-5) for offload.profile. Defaults to 2.
     Returns:
         str: Path to the generated video file.
     """
@@ -262,10 +262,10 @@ def infer(
         4: profile_type.LowRAM_LowVRAM,
         5: profile_type.VerylowRAM_LowVRAM,
     }
-    chosen_profile = profile_type_map.get(profile_type, profile_type.HighRAM_LowVRAM)
+    chosen_profile = profile_type_map.get(profile_type_id, profile_type.HighRAM_LowVRAM)
     offload.profile(pipe, chosen_profile)
     transformer = pipe["transformer"]
-    print(f"Model loaded successfully. Using profile_type {profile_type}.")
+    print(f"Model loaded successfully. Using profile_type {profile_type_id}.")
 
     # 6. Prepare for inference: disable gradients, clear memory, create output dir
     torch.set_grad_enabled(False) 
@@ -363,7 +363,7 @@ def parse_args():
     parser.add_argument('--mixed-precision-transformer', action='store_true', help='Mixed precision transformer')
     parser.add_argument('--save-quantized', action='store_true', help='Save quantized model')
     parser.add_argument('--output-path', type=str, default=None, help='Path to save the generated video')
-    parser.add_argument('--profile-type', type=int, default=2, choices=[1,2,3,4,5], help='Profile type for offload.profile (1: LowRAM_HighVRAM, 2: HighRAM_LowVRAM, 3: Balanced, 4: MaxPerformance, 5: MinMemory). Default: 2')
+    parser.add_argument('--profile-type-id', type=int, default=2, choices=[1,2,3,4,5], help='Profile type for offload.profile (1: LowRAM_HighVRAM, 2: HighRAM_LowVRAM, 3: Balanced, 4: MaxPerformance, 5: MinMemory). Default: 2')
     args = parser.parse_args()
     return args
 
