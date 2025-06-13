@@ -10,6 +10,13 @@ model_filename = "ckpts/ltxv_0.9.7_13B_distilled_lora128_bf16.safetensors"
 enhancer_enabled = True
 save_path = "outputs/"
 
+vae_config_choices = [
+    ("Auto", 0),
+    ("Disabled (faster but may require up to 22 GB of VRAM)", 1),
+    ("256 x 256 : If at least 8 GB of VRAM", 2),
+    ("128 x 128 : If at least 6 GB of VRAM", 3),
+]
+
 def computeList(filename):
     if filename == None:
         return []
@@ -204,6 +211,20 @@ def infer(**kwargs):
     fit_into_canvas = kwargs.get("fit_into_canvas", True)
     device = kwargs.get("device", None)
     VAE_tile_size = kwargs.get("VAE_tile_size", None)
+
+    # set VAE tile size if not provided
+    if not VAE_tile_size:
+        vae_config = 0 # Auto
+        device_mem_capacity = torch.cuda.get_device_properties(0).total_memory / 1048576
+        #("16 bits, requires less VRAM and faster", "16"),
+        #("32 bits, requires twice more VRAM and slower but recommended with Window Sliding", "32"),
+        vae_precision = "16"
+        VAE_tile_size = model.vae.get_VAE_tile_size(
+            vae_config,
+            device_mem_capacity,
+            vae_precision == "32",
+        )
+
 
     # Call the generate method of the model
     output = model.generate(
