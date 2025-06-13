@@ -272,13 +272,11 @@ def infer(
     chosen_profile = profile_type_map.get(profile_type_id, profile_type.HighRAM_LowVRAM)
     profile_kwargs = { "extraModelsToQuantize": None }    
     preload = 0
-    compile="transformer"
-    quantizeTransformer = True
     if profile_type_id in (2, 4, 5):
         profile_kwargs["budgets"] = { "transformer" : 100 if preload  == 0 else preload, "text_encoder" : 100 if preload  == 0 else preload, "*" : max(1000 if profile_type_id==5 else 3000 , preload) }
     elif profile_type_id == 3:
         profile_kwargs["budgets"] = { "*" : "70%" }
-    offload.profile(pipe, chosen_profile, compile=compile, quantizeTransformer=quantizeTransformer, **profile_kwargs)
+    offload.profile(pipe, chosen_profile, **profile_kwargs)
     transformer = pipe["transformer"]
     print(f"Model loaded successfully. Using profile_type {profile_type_id}.")
 
