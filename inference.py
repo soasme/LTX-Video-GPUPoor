@@ -47,6 +47,14 @@ def process_files_def(repoId, sourceFolderList, fileList):
                         hf_hub_download(repo_id=repoId,  filename=onefile, local_dir = targetRoot)
 
 
+from wan.modules.attention import get_attention_modes, get_supported_attention_modes
+attention_modes_installed = get_attention_modes()
+attention_modes_supported = get_supported_attention_modes()
+def get_auto_attention():
+    for attn in ["sage2","sage","sdpa"]:
+        if attn in attention_modes_supported:
+            return attn
+    return "sdpa"
 
 
 
@@ -227,6 +235,10 @@ def infer(**kwargs):
 
     # set interrupt (?)
     model._interrupt = False
+
+    # set attention
+    attn = get_auto_attention()
+    offload.shared_state["_attention"] =  attn
 
     # Call the generate method of the model
     output = model.generate(
