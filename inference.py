@@ -174,7 +174,7 @@ def infer(
     mixed_precision_transformer: bool = False,
     save_quantized: bool = False,
     output_path: str = None,
-    profile_type_id: int = 2
+    profile_type: int = 2
 ):
     """
     Generate a video using the LTXV model.
@@ -204,7 +204,7 @@ def infer(
         mixed_precision_transformer (bool): Mixed precision transformer.
         save_quantized (bool): Save quantized model.
         output_path (str): Path to save the generated video.
-        profile_type_id (int): Profile type (1-5) for offload.profile. Defaults to 2.
+        profile_type (int): Profile type (1-5) for offload.profile. Defaults to 2.
     Returns:
         str: Path to the generated video file.
     """
@@ -262,10 +262,10 @@ def infer(
         4: profile_type.LowRAM_LowVRAM,
         5: profile_type.VerylowRAM_LowVRAM,
     }
-    chosen_profile = profile_type_map.get(profile_type_id, profile_type.HighRAM_LowVRAM)
+    chosen_profile = profile_type_map.get(profile_type, profile_type.HighRAM_LowVRAM)
     offload.profile(pipe, chosen_profile)
     transformer = pipe["transformer"]
-    print(f"Model loaded successfully. Using profile_type {profile_type_id}.")
+    print(f"Model loaded successfully. Using profile_type {profile_type}.")
 
     # 6. Prepare for inference: disable gradients, clear memory, create output dir
     torch.set_grad_enabled(False) 
