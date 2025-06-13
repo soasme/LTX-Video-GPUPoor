@@ -300,11 +300,8 @@ if __name__ == "__main__":
     # Convert image_start and image_end to PIL.Image if they are file paths
     for key in ["image_start", "image_end"]:
         val = infer_args.get(key)
-        if val and isinstance(val, str) and os.path.isfile(val):
-            try:
-                infer_args[key] = Image.open(val).convert("RGB")
-            except Exception as e:
-                print(f"Warning: could not open {key} as image: {e}")
+        if val:
+            infer_args[key] = Image.open(val).convert("RGB")
 
     try:
         infer(**infer_args)
