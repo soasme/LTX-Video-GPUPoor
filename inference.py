@@ -301,7 +301,7 @@ if __name__ == "__main__":
     for key in ["image_start", "image_end"]:
         val = infer_args.get(key)
         if val:
-            infer_args[key] = Image.open(val).convert("RGB")
+            infer_args[key] = [Image.open(val).convert("RGB")]
 
     try:
         infer(**infer_args)
