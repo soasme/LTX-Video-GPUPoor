@@ -280,6 +280,7 @@ def parse_args():
 if __name__ == "__main__":
     import urllib.request
     import tempfile
+    from PIL import Image
 
     args = parse_args()
     infer_args = vars(args)
@@ -295,6 +296,15 @@ if __name__ == "__main__":
             urllib.request.urlretrieve(val, tmp.name)
             infer_args[key] = tmp.name
             temp_files.append(tmp.name)
+
+    # Convert image_start and image_end to PIL.Image if they are file paths
+    for key in ["image_start", "image_end"]:
+        val = infer_args.get(key)
+        if val and isinstance(val, str) and os.path.isfile(val):
+            try:
+                infer_args[key] = Image.open(val).convert("RGB")
+            except Exception as e:
+                print(f"Warning: could not open {key} as image: {e}")
 
     try:
         infer(**infer_args)
