@@ -303,7 +303,7 @@ def infer(
     # 4. Load the model and pipeline
     model_filenames = [model_filename]
     if 'distilled' in model_filename:
-        model_filenames.append(
+        model_filenames.insert(0,
             "ckpts/ltxv_0.9.7_13B_dev_quanto_bf16_int8.safetensors",
         )
     model, pipe = load_ltxv_model(
