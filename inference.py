@@ -268,6 +268,7 @@ def infer(
         transformer_dtype_policy
     )
     
+    
     text_encoder_filename = get_ltxv_text_encoder_filename(text_encoder_quantization)
 
     # 2. Prepare model download definitions for text encoder and enhancer
@@ -300,9 +301,13 @@ def infer(
 
     print(f"Using model file: {model_filename}")
     # 4. Load the model and pipeline
+    model_filenames = [model_filename]
+    if 'distilled' in model_filename:
+        model_filenames.append(
+            "ckpts/ltxv_0.9.7_13B_dev_quanto_bf16_int8.safetensors",
+        )
     model, pipe = load_ltxv_model(
-        model_filename=["ckpts/ltxv_0.9.7_13B_dev_quanto_bf16_int8.safetensors",
-                        "ckpts/ltxv_0.9.7_13B_distilled_lora128_bf16.safetensors"],
+        model_filename=model_filenames,
         base_model_type=model_mode,
         quantizeTransformer=quantize_transformer,
         dtype=get_transformer_dtype(model_mode, transformer_dtype_policy),
