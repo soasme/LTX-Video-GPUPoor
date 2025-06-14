@@ -16,7 +16,7 @@ imageio-ffmpeg
 gradio==5.23.0   
 numpy>=1.23.5,<2
 einops
-moviepy==1.0.3
+moviepy
 mmgp==3.4.9
 peft==0.14.0
 mutagen
@@ -35,3 +35,4 @@ sentencepiece
 av
 opencv-python
 # rembg==2.0.65
+uploadserver

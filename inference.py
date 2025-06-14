@@ -8,8 +8,13 @@ import torch
 from mmgp import offload, profile_type
 from huggingface_hub import hf_hub_download, snapshot_download
 from moviepy import ImageSequenceClip
+import os.path as osp
+import torchvision
+import binascii
+import imageio
 from ltx_video.ltxv import LTXV
 from utils.attention import get_attention_modes, get_supported_attention_modes
+import shutil
 
 attention_modes_installed = get_attention_modes()
 attention_modes_supported = get_supported_attention_modes()
@@ -147,12 +152,52 @@ def load_ltxv_model(model_filename, base_model_type, quantizeTransformer = False
 
     return ltxv_model, pipe
 
-def save_video(final_frames, output_path, fps=24):
-    assert final_frames.ndim == 4 and final_frames.shape[3] == 3, f"invalid shape: {final_frames} (need t h w c)"
-    if final_frames.dtype != np.uint8:
-        final_frames = (final_frames * 255).astype(np.uint8)
-    ImageSequenceClip(list(final_frames), fps=fps).write_videofile(output_path, verbose= False)
+def rand_name(length=8, suffix=''):
+    name = binascii.b2a_hex(os.urandom(length)).decode('utf-8')
+    if suffix:
+        if not suffix.startswith('.'):
+            suffix = '.' + suffix
+        name += suffix
+    return name
+def cache_video(tensor,
+                save_file=None,
+                fps=30,
+                suffix='.mp4',
+                nrow=8,
+                normalize=True,
+                value_range=(-1, 1),
+                retry=5):
+    # cache file
+    cache_file = osp.join('/tmp', rand_name(
+        suffix=suffix)) if save_file is None else save_file
 
+    # save to cache
+    error = None
+    for _ in range(retry):
+        try:
+            # preprocess
+            tensor = tensor.clamp(min(value_range), max(value_range))
+            tensor = torch.stack([
+                torchvision.utils.make_grid(
+                    u, nrow=nrow, normalize=normalize, value_range=value_range)
+                for u in tensor.unbind(2)
+            ],
+                                 dim=1).permute(1, 2, 3, 0)
+            tensor = (tensor * 255).type(torch.uint8).cpu()
+
+            # write video
+            writer = imageio.get_writer(
+                cache_file, fps=fps, codec='libx264', quality=8)
+            for frame in tensor.numpy():
+                writer.append_data(frame)
+            writer.close()
+            return cache_file
+        except Exception as e:
+            error = e
+            continue
+    else:
+        print(f'cache_video failed, error: {error}', flush=True)
+        return None
 
 ####
 
@@ -335,10 +380,12 @@ def infer(
         # If output is already a file path
         output_path = output
     else:
-        # If output is a numpy array or similar, use moviepy to save
+        # If output is a numpy array or tensor, use cache_video to save and move to output_path
         output = output.to("cpu")
         output = output.cpu()
-        save_video(output[None], output_path, fps=frame_rate)
+        cached_file = cache_video(output[None], save_file=None, fps=frame_rate)
+        if cached_file and cached_file != output_path:
+            shutil.move(cached_file, output_path)
 
     print(f"Video saved to {output_path}")
 
