@@ -301,7 +301,7 @@ def infer(
         process_files_def(**enhancer_model_def)
     process_files_def(**text_encoder_model_def)
     process_files_def(**{
-        "RepoId": "Lightricks/LTX-Video",
+        "repoId": "Lightricks/LTX-Video",
         "sourceFolderList": [""],
         "fileList": ["ltxv-13b-0.9.7-distilled-fp8.safetensors"]
     })
