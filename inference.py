@@ -301,7 +301,8 @@ def infer(
     print(f"Using model file: {model_filename}")
     # 4. Load the model and pipeline
     model, pipe = load_ltxv_model(
-        model_filename=[model_filename],
+        model_filename=["ckpts/ltxv_0.9.7_13B_dev_quanto_bf16_int8.safetensors",
+                        "ckpts/ltxv_0.9.7_13B_distilled_lora128_bf16.safetensors"],
         base_model_type=model_mode,
         quantizeTransformer=quantize_transformer,
         dtype=get_transformer_dtype(model_mode, transformer_dtype_policy),
