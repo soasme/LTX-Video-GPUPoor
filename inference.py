@@ -199,6 +199,7 @@ def cache_video(tensor,
         print(f'cache_video failed, error: {error}', flush=True)
         return None
 
+
 ####
 
 def infer(
@@ -266,6 +267,7 @@ def infer(
         quantization,
         transformer_dtype_policy
     )
+    
     text_encoder_filename = get_ltxv_text_encoder_filename(text_encoder_quantization)
 
     # 2. Prepare model download definitions for text encoder and enhancer
@@ -280,8 +282,10 @@ def infer(
             ] + computeList(text_encoder_filename),
             ["ltxv_0.9.7_VAE.safetensors",
             "ltxv_0.9.7_spatial_upscaler.safetensors",
+            "ltxv_0.9.7_13B_dev_quanto_bf16_int8.safetensors",
+            "ltxv_0.9.7_13B_distilled_lora128_bf16.safetensors",
             "ltxv_scheduler.json"
-            ] + computeList(model_filename) ]   
+            ] ]   
     }
     enhancer_model_def = {
         "repoId" : "DeepBeepMeep/LTX_Video",
