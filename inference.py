@@ -267,6 +267,8 @@ def infer(
         quantization,
         transformer_dtype_policy
     )
+    if os.environ.get("FP8") == "1":
+        model_filename = "ckpts/ltxv-13b-0.9.7-distilled-fp8.safetensors"
     
     
     text_encoder_filename = get_ltxv_text_encoder_filename(text_encoder_quantization)
@@ -298,14 +300,20 @@ def infer(
     if enhancer_enabled:
         process_files_def(**enhancer_model_def)
     process_files_def(**text_encoder_model_def)
+    process_files_def(**{
+        "RepoId": "Lightricks/LTX-Video",
+        "sourceFolderList": [""],
+        "fileList": ["ltxv-13b-0.9.7-distilled-fp8.safetensors"]
+    })
 
     print(f"Using model file: {model_filename}")
     # 4. Load the model and pipeline
     model_filenames = [model_filename]
-    if 'distilled' in model_filename:
+    if 'lora' in model_filename:
         model_filenames.insert(0,
             "ckpts/ltxv_0.9.7_13B_dev_quanto_bf16_int8.safetensors",
         )
+    
     model, pipe = load_ltxv_model(
         model_filename=model_filenames,
         base_model_type=model_mode,
