@@ -59,7 +59,14 @@ def process_files_def(repoId, sourceFolderList, fileList):
                         hf_hub_download(repo_id=repoId,  filename=onefile, local_dir = targetRoot)
 
 
-
+def get_transformer_model(model):
+    if hasattr(model, "model"):
+        return model.model
+    elif hasattr(model, "transformer"):
+        return model.transformer
+    else:
+        raise Exception("no transformer found")
+    
 def get_auto_attention():
     for attn in ["sage2","sage","sdpa"]:
         if attn in attention_modes_supported:
@@ -316,16 +323,7 @@ def infer(
         save_quantized=save_quantized
     )
 
-    if 'lora' in model_filename:
-        offload.load_loras_into_model(
-            model_filename,
-            [model_filename],
-            [1.0],
-            activate_all_loras=True,
-            preprocess_sd=None,
-            pinnedLora=False,
-            split_linear_modules_map = None
-        ) 
+    
 
     # 5. Set up memory management and offloading
     profile_type_map = {
@@ -345,6 +343,17 @@ def infer(
     offload.profile(pipe, chosen_profile, **profile_kwargs)
     transformer = pipe["transformer"]
     print(f"Model loaded successfully. Using profile_type {profile_type_id}.")
+
+    if 'lora' in model_filename:
+        offload.load_loras_into_model(
+            get_transformer_model(transformer),
+            [model_filename],
+            [1.0],
+            activate_all_loras=True,
+            preprocess_sd=None,
+            pinnedLora=False,
+            split_linear_modules_map = None
+        ) 
 
     # 6. Prepare for inference: disable gradients, clear memory, create output dir
     torch.set_grad_enabled(False) 
