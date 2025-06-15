@@ -346,7 +346,7 @@ def infer(
 
     if 'lora' in model_filename:
         offload.load_loras_into_model(
-            get_transformer_model(transformer),
+            model,
             [model_filename],
             [1.0],
             activate_all_loras=True,
