@@ -316,6 +316,17 @@ def infer(
         save_quantized=save_quantized
     )
 
+    if 'lora' in model_filename:
+        offload.load_loras_into_model(
+            model_filename,
+            [model_filename],
+            [1.0],
+            activate_all_loras=True,
+            preprocess_sd=None,
+            pinnedLora=False,
+            split_linear_modules_map = None
+        ) 
+
     # 5. Set up memory management and offloading
     profile_type_map = {
         1: profile_type.LowRAM_HighVRAM,
