@@ -477,7 +477,7 @@ def load_and_profile_model(
     if "lora" in model_filename:
         offload.profile(pipe, chosen_profile, loras="transformer", **profile_kwargs)
         offload.load_loras_into_model(
-            model,
+            pipe['transformer'],
             [model_filename],
             [1.0],
             activate_all_loras=True,
