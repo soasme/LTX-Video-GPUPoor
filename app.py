@@ -1,4 +1,4 @@
-# gunicorn -w 1 -b 0.0.0.0:7860 --timeout 600 app:app
+# gunicorn -w 2 -b 0.0.0.0:7860 --timeout 600 app:app
 import base64
 from io import BytesIO
 import os
