@@ -42,7 +42,8 @@ def run_inference():
             video_length=int(data['num_frames']),
             frame_rate=int(data['frame_rate']),
             num_inference_steps=int(data['num_inference_steps']),
-            image_start=[pil_image]
+            image_start=[pil_image],
+            cleanup_model=False,
         )
         output_path = inference.infer(**infer_args)
         # Make the output_path relative to outputs/ for download URL
