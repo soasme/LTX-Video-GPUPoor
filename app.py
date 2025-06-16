@@ -1,13 +1,20 @@
 # gunicorn -w 1 -b 0.0.0.0:7860 app:app
 import base64
 from io import BytesIO
+import os
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from PIL import Image
 
 import inference
 
 app = Flask(__name__)
+
+@app.route('/download/<path:filename>', methods=['GET'])
+def download_file(filename):
+    # Only allow files from the outputs directory
+    outputs_dir = os.path.abspath('outputs')
+    return send_from_directory(outputs_dir, filename, as_attachment=True)
 
 @app.route('/', methods=['POST'])
 def run_inference():
@@ -34,6 +41,14 @@ def run_inference():
             image_start=[pil_image]
         )
         output_path = inference.infer(**infer_args)
-        return jsonify([{'video': output_path}])
+        # Make the output_path relative to outputs/ for download URL
+        outputs_dir = os.path.abspath('outputs')
+        abs_output_path = os.path.abspath(output_path)
+        if abs_output_path.startswith(outputs_dir):
+            rel_path = os.path.relpath(abs_output_path, outputs_dir)
+            download_url = request.url_root.rstrip('/') + '/download/' + rel_path
+        else:
+            download_url = None
+        return jsonify([{'video': download_url}])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
