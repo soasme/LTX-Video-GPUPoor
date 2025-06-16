@@ -1,7 +1,8 @@
-# gunicorn -w 1 -b 0.0.0.0:7860 app:app
+# gunicorn -w 1 -b 0.0.0.0:7860 --timeout 600 app:app
 import base64
 from io import BytesIO
 import os
+import uuid
 
 from flask import Flask, request, jsonify, send_from_directory
 from PIL import Image
@@ -9,6 +10,9 @@ from PIL import Image
 import inference
 
 app = Flask(__name__)
+
+# Ensure outputs directory exists
+os.makedirs('outputs', exist_ok=True)
 
 @app.route('/download/<path:filename>', methods=['GET'])
 def download_file(filename):
@@ -47,6 +51,8 @@ def run_inference():
         if abs_output_path.startswith(outputs_dir):
             rel_path = os.path.relpath(abs_output_path, outputs_dir)
             download_url = request.url_root.rstrip('/') + '/download/' + rel_path
+            if os.environ.get('HTTPS', 'false').lower() == 'true':
+                download_url = download_url.replace('http://', 'https://')
         else:
             download_url = None
         return jsonify([{'video': download_url}])

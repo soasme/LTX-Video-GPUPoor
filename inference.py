@@ -2,6 +2,8 @@ import os
 
 from pathlib import Path
 import gc
+import uuid
+from functools import lru_cache
 
 import numpy as np
 import torch
@@ -36,7 +38,7 @@ def computeList(filename):
     filename = filename[pos + 1 :]
     return [filename]
 
-
+@lru_cache(maxsize=8)
 def get_ltxv_text_encoder_filename(text_encoder_quantization):
     text_encoder_filename = "ckpts/T5_xxl_1.1/T5_xxl_1.1_enc_bf16.safetensors"
     if text_encoder_quantization == "int8":
@@ -104,7 +106,7 @@ model_signatures = {
 }
 finetunes = {}
 
-
+@lru_cache(maxsize=8)
 def get_transformer_dtype(model_family, transformer_dtype_policy):
     major, minor = torch.cuda.get_device_capability()
     if major < 8:
@@ -125,7 +127,7 @@ def get_transformer_dtype(model_family, transformer_dtype_policy):
     else:
         return torch.bfloat16
 
-
+@lru_cache(maxsize=8)
 def get_model_filename(model_type, quantization="int8", dtype_policy=""):
     finetune_def = finetunes.get(model_type, None)
     if finetune_def != None:
@@ -286,6 +288,7 @@ def infer(
     output_path: str = None,
     profile_type_id: int = 2,
     model = None,
+    cleanup_model: bool = True,
 ):
     """
     Generate a video using the LTXV model.
@@ -369,7 +372,8 @@ def infer(
     output_path = save_output_video(output, output_path, save_path, frame_rate, seed)
 
     # 7. Unload model and free memory
-    cleanup_model()
+    if cleanup_model:
+        cleanup_model()
 
     return output_path
 
@@ -550,7 +554,8 @@ def generate_video(
 
 def save_output_video(output, output_path, save_path, frame_rate, seed):
     if output_path is None:
-        output_path = os.path.join(save_path, f"generated_{seed}.mp4")
+        rand = str(uuid.uuid4())
+        output_path = os.path.join(save_path, f"generated_{rand}_{seed}.mp4")
     if hasattr(output, "save"):
         output.save(output_path)
     elif isinstance(output, str):
