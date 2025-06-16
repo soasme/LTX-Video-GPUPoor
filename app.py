@@ -34,6 +34,6 @@ def run_inference():
             image_start=[pil_image]
         )
         output_path = inference.infer(**infer_args)
-        return jsonify({'output_path': output_path})
+        return jsonify([{'video': output_path}])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
