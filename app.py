@@ -51,4 +51,5 @@ def run_inference():
             download_url = None
         return jsonify([{'video': download_url}])
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback; traceback.print_exc()
+        return jsonify([{'error': str(e)}]), 500
