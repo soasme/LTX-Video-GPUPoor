@@ -5,12 +5,12 @@ This file uploads the LTX-Video model from the Hugging Face Hub to beam.cloud Vo
 from beam import function, Volume, Image, env
 
 if env.is_remote():
-    from inference import select_model_files, prepare_models_and_enhancers
+    from inference import get_ltxv_text_encoder_filename, prepare_models_and_enhancers
 
 VOLUME_PATH = "./ckpts"
 
-with open("./requirements.txt", "w") as f:
-    python_packages = [l for l in f.readlines() if not f.startswith("#")]
+with open("./requirements.txt", "r") as f:
+    python_packages = [l.strip() for l in f.readlines() if not l.startswith("#")]
 
 @function(
     image=Image(python_packages=python_packages),
@@ -18,16 +18,12 @@ with open("./requirements.txt", "w") as f:
     cpu=4,
     secrets=["HF_TOKEN"],
     volumes=[Volume(name="LTX-Video", mount_path=VOLUME_PATH)],
+    name="ltxv-upload",
 )
 def upload():
-    model_mode = "ltxv_13B_distilled"
-    quantization = "int8"
-    transformer_dtype_policy = ""
-
     # 1. Select the model filename and text encoder filename based on arguments
-    _, text_encoder_filename = select_model_files(
-        model_mode, quantization, transformer_dtype_policy
-    )
+    text_encoder_quantization = "int8"
+    text_encoder_filename = get_ltxv_text_encoder_filename(text_encoder_quantization)(
 
     # 2. Prepare model download definitions for text encoder and enhancer
     prepare_models_and_enhancers(text_encoder_filename)

@@ -11,12 +11,10 @@ import os.path as osp
 import torchvision
 import binascii
 import imageio
-from ltx_video.ltxv import LTXV
-from utils.attention import get_attention_modes, get_supported_attention_modes
+
 import shutil
 
-attention_modes_installed = get_attention_modes()
-attention_modes_supported = get_supported_attention_modes()
+
 text_encoder_quantization = (
     "int8"  # Default quantization type, can be changed to "bf16" or "int8"
 )
@@ -85,6 +83,8 @@ def get_transformer_model(model):
 
 
 def get_auto_attention():
+    from utils.attention import get_supported_attention_modes
+    attention_modes_supported = get_supported_attention_modes()
     for attn in ["sage2", "sage", "sdpa"]:
         if attn in attention_modes_supported:
             return attn
@@ -104,17 +104,17 @@ model_signatures = {
 }
 finetunes = {}
 
-major, minor = torch.cuda.get_device_capability()
-if major < 8:
-    print(
-        "Switching to FP16 models when possible as GPU architecture doesn't support optimed BF16 Kernels"
-    )
-    bfloat16_supported = False
-else:
-    bfloat16_supported = True
-
 
 def get_transformer_dtype(model_family, transformer_dtype_policy):
+    major, minor = torch.cuda.get_device_capability()
+    if major < 8:
+        print(
+            "Switching to FP16 models when possible as GPU architecture doesn't support optimed BF16 Kernels"
+        )
+        bfloat16_supported = False
+    else:
+        bfloat16_supported = True
+        
     if len(transformer_dtype_policy) == 0:
         if not bfloat16_supported:
             return torch.float16
@@ -180,6 +180,7 @@ def load_ltxv_model(
     mixed_precision_transformer=False,
     save_quantized=False,
 ):
+    from ltx_video.ltxv import LTXV
     ltxv_model = LTXV(
         model_filepath=model_filename,
         text_encoder_filepath=get_ltxv_text_encoder_filename(text_encoder_quantization),
@@ -276,7 +277,7 @@ def infer(
     fit_into_canvas: bool = True,
     device=None,
     VAE_tile_size=None,
-    model_mode: str = "ltxv_13B",
+    model_mode: str = "ltxv_13B_distilled",
     quantization: str = "int8",
     transformer_dtype_policy: str = "",
     quantize_transformer: bool = False,
@@ -284,7 +285,7 @@ def infer(
     save_quantized: bool = False,
     output_path: str = None,
     profile_type_id: int = 2,
-    model: LTXV = None,
+    model = None,
 ):
     """
     Generate a video using the LTXV model.
