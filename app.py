@@ -37,6 +37,7 @@ model, _ = inference.load_and_profile_model(
     save_quantized,
     profile_type_id,
 )
+model.pipeline.set_progress_bar_config(disable=True)
 
 # Ensure outputs directory exists
 os.makedirs('outputs', exist_ok=True)
