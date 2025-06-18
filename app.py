@@ -1,7 +1,9 @@
 # gunicorn -w 2 -b 0.0.0.0:7860 --timeout 600 app:app
 import base64
 from io import BytesIO
+import logging
 import os
+import time
 import uuid
 
 from flask import Flask, request, jsonify, send_from_directory
@@ -10,6 +12,10 @@ from PIL import Image
 import inference
 
 app = Flask(__name__)
+
+# Configure logging
+logger = logging.getLogger("app")
+logging.basicConfig(level=logging.INFO)
 
 # Preload models.
 # 1. Select the model filename and text encoder filename based on arguments
@@ -50,7 +56,9 @@ def download_file(filename):
 
 @app.route('/', methods=['POST'])
 def run_inference():
+    start_time = time.time()
     data = request.get_json()
+    logger.info(f"[POST /] Start time: {start_time:.3f}, Payload: {data}")
     required_fields = [
         'image', 'prompt', 'negative_prompt', 'height', 'width',
         'num_frames', 'frame_rate', 'num_inference_steps'
@@ -85,7 +93,10 @@ def run_inference():
                 download_url = download_url.replace('http://', 'https://')
         else:
             download_url = None
+        end_time = time.time()
+        logger.info(f"[POST /] End time: {end_time:.3f}, Download URL: {download_url}, Duration: {end_time - start_time:.3f}s")
         return jsonify([{'video': download_url}])
     except Exception as e:
         import traceback; traceback.print_exc()
+        logger.error(f"[POST /] Exception: {e}")
         return jsonify([{'error': str(e)}]), 500
