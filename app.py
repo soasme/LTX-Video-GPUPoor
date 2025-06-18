@@ -58,7 +58,7 @@ def download_file(filename):
 def run_inference():
     start_time = time.time()
     data = request.get_json()
-    logger.info(f"[POST /] Start time: {start_time:.3f}, Payload: {data}")
+    logger.info(f"[POST /] Start time: {start_time:.3f}, ID {data.get('creation_id') or 'N/A'}")
     required_fields = [
         'image', 'prompt', 'negative_prompt', 'height', 'width',
         'num_frames', 'frame_rate', 'num_inference_steps'
