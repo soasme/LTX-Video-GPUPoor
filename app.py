@@ -66,6 +66,8 @@ def run_inference():
     missing = [f for f in required_fields if f not in data]
     if missing:
         return jsonify({'error': f'Missing fields: {", ".join(missing)}'}), 400
+    def callback(*args, **kwargs):
+        logger.info(f"[POST /] Callback args: {args}, kwargs: {kwargs}")
     try:
         # Decode base64 image to PIL.Image
         image_bytes = base64.b64decode(data['image'])
@@ -81,6 +83,7 @@ def run_inference():
             image_start=[pil_image],
             cleanup_model=False,
             model=model,
+            callback=callback,
         )
         output_path = inference.infer(**infer_args)
         # Make the output_path relative to outputs/ for download URL
