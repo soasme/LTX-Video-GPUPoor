@@ -66,8 +66,6 @@ def run_inference():
     missing = [f for f in required_fields if f not in data]
     if missing:
         return jsonify({'error': f'Missing fields: {", ".join(missing)}'}), 400
-    def callback(*args, **kwargs):
-        logger.info(f"[POST /] Callback args: {args}, kwargs: {kwargs}")
     try:
         # Decode base64 image to PIL.Image
         image_bytes = base64.b64decode(data['image'])
@@ -83,7 +81,6 @@ def run_inference():
             image_start=[pil_image],
             cleanup_model=False,
             model=model,
-            callback=callback,
         )
         output_path = inference.infer(**infer_args)
         # Make the output_path relative to outputs/ for download URL
@@ -97,7 +94,7 @@ def run_inference():
         else:
             download_url = None
         end_time = time.time()
-        logger.info(f"[POST /] End time: {end_time:.3f}, Download URL: {download_url}, Duration: {end_time - start_time:.3f}s")
+        logger.info(f"[POST /] End time: {end_time:.3f}, ID {data.get('creation_id') or 'N/A'}, Download URL: {download_url}, Duration: {end_time - start_time:.3f}s")
         return jsonify([{'video': download_url}])
     except Exception as e:
         import traceback; traceback.print_exc()
