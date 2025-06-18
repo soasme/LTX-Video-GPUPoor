@@ -288,6 +288,7 @@ def infer(
     output_path: str = None,
     profile_type_id: int = 2,
     model = None,
+    callback = None,
     cleanup_model: bool = True,
 ):
     """
@@ -366,6 +367,7 @@ def infer(
         fit_into_canvas,
         device,
         VAE_tile_size,
+        callback=callback,
     )
 
     # 6. Save the output video to disk
@@ -526,6 +528,7 @@ def generate_video(
     fit_into_canvas,
     device,
     VAE_tile_size,
+    callback=None,
 ):
     model._interrupt = False
     attn = get_auto_attention()
@@ -548,6 +551,7 @@ def generate_video(
         fit_into_canvas=fit_into_canvas,
         device=device,
         VAE_tile_size=VAE_tile_size,
+        callback=callback,
     )
     return output
 
