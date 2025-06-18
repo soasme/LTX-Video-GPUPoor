@@ -11,6 +11,33 @@ import inference
 
 app = Flask(__name__)
 
+# Preload models.
+# 1. Select the model filename and text encoder filename based on arguments
+model_mode = os.environ.get('MODEL_MODE', 'ltxv_13B_distilled')
+quantization = os.environ.get('QUANTIZATION', 'int8')
+transformer_dtype_policy = os.environ.get('TRANSFORMER_DTYPE_POLICY', '')
+model_filename, text_encoder_filename = inference.select_model_files(
+    model_mode, quantization, transformer_dtype_policy
+)
+
+# 2. Prepare model download definitions for text encoder and enhancer
+inference.prepare_models_and_enhancers(text_encoder_filename)
+
+# 3. Load the model and pipeline
+quantize_transformer = False
+save_quantized = False
+mixed_precision_transformer = False
+profile_type_id = int(os.environ.get('PROFILE_TYPE_ID', '1'))
+model, _ = inference.load_and_profile_model(
+    model_filename,
+    model_mode,
+    quantize_transformer,
+    transformer_dtype_policy,
+    mixed_precision_transformer,
+    save_quantized,
+    profile_type_id,
+)
+
 # Ensure outputs directory exists
 os.makedirs('outputs', exist_ok=True)
 
@@ -44,6 +71,7 @@ def run_inference():
             num_inference_steps=int(data['num_inference_steps']),
             image_start=[pil_image],
             cleanup_model=False,
+            model=model,
         )
         output_path = inference.infer(**infer_args)
         # Make the output_path relative to outputs/ for download URL
